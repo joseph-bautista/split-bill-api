@@ -1,34 +1,24 @@
 const express = require("express");
+
 const router = express.Router();
-
 const apiLimiter = require("../middleware/rateLimiter");
+const authMiddleware = require("../middleware/authMiddleware");
 
-// Apply limiter to all routes here
 router.use(apiLimiter);
 
-// GET /api/users
-router.get("/", (req, res) => {
-  res.json({
-    success: true,
-    data: [
-      { id: 1, name: "John" },
-      { id: 2, name: "Jane" }
-    ]
-  });
-});
+const {
+  index,
+  show,
+  addOrCancelFriendRequest,
+  deleteFriend
+} = require("../controllers/userController");
 
-// POST /api/users
-router.post("/", (req, res) => {
-  const { name } = req.body;
+router.get("/", authMiddleware, index);
 
-  res.status(201).json({
-    success: true,
-    message: "User created",
-    user: {
-      id: Date.now(),
-      name
-    }
-  });
-});
+router.get("/:id", authMiddleware, show);
+
+router.post("/:id/friend-request", authMiddleware, addOrCancelFriendRequest);
+
+router.delete("/:id/friend", authMiddleware, deleteFriend);
 
 module.exports = router;
