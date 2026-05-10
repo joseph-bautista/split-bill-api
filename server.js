@@ -13,12 +13,15 @@ app.use(helmet());
 app.use(cors());
 app.use(morgan("dev"));
 
-
 const userRoutes = require("./routes/users");
 const authRoutes = require("./routes/auth");
+const billRoutes = require("./routes/bills");
+const itemRoutes = require("./routes/items");
 
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/bills", billRoutes);
+app.use("/api/items", itemRoutes);
 
 const PORT = process.env.PORT || 3000;
 
