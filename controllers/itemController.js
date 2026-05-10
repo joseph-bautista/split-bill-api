@@ -1,20 +1,53 @@
 const bcrypt = require("bcryptjs");
 
-const { User } = require("../models");
+const { User, Bill, UserBill, Item } = require("../models");
 
 exports.index = async (req, res) => {
 
   try {
 
-    const users = await User.findAll({
-      attributes: {
-        exclude: ["password"]
+    const { bill_id } = req.params;
+
+    // VERIFY ACCESS TO BILL
+    const bill = await Bill.findOne({
+      where: {
+        id: bill_id
+      },
+
+      include: [
+        {
+          model: User,
+
+          where: {
+            id: req.user.id
+          },
+
+          through: {
+            attributes: []
+          },
+
+          attributes: []
+        }
+      ]
+    });
+
+    if (!bill) {
+      return res.status(404).json({
+        success: false,
+        message: "Bill not found"
+      });
+    }
+
+    // GET ITEMS
+    const items = await Item.findAll({
+      where: {
+        bill_id
       }
     });
 
     res.json({
       success: true,
-      data: users
+      data: items
     });
 
   } catch (error) {
@@ -34,24 +67,53 @@ exports.show = async (req, res) => {
 
   try {
 
-    const { id } = req.params;
+    const { id, bill_id } = req.params;
 
-    const user = await User.findByPk(id, {
-      attributes: {
-        exclude: ["password"]
-      }
+    // VERIFY ACCESS TO BILL
+    const bill = await Bill.findOne({
+      where: {
+        id: bill_id
+      },
+
+      include: [
+        {
+          model: User,
+
+          where: {
+            id: req.user.id
+          },
+
+          through: {
+            attributes: []
+          },
+
+          attributes: []
+        }
+      ]
     });
 
-    if (!user) {
+    if (!bill) {
       return res.status(404).json({
         success: false,
-        message: "User not found"
+        message: "Bill not found"
+      });
+    }
+    const item = await Item.findOne({
+      where: {
+        id
+      },
+    });
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found"
       });
     }
 
     res.json({
       success: true,
-      data: user
+      data: item
     });
 
   } catch (error) {
@@ -72,36 +134,90 @@ exports.store = async (req, res) => {
   try {
 
     const {
+      bill_id,
       name,
-      email,
-      password
+      price
     } = req.body;
 
-    const existingUser = await User.findOne({
-      where: { email }
+    // VERIFY ACCESS TO BILL
+    const bill = await Bill.findOne({
+      where: {
+        id: bill_id
+      },
+
+      include: [
+        {
+          model: User,
+
+          where: {
+            id: req.user.id
+          },
+
+          through: {
+            attributes: []
+          },
+
+          attributes: []
+        }
+      ]
     });
 
-    if (existingUser) {
-      return res.status(400).json({
+    if (!bill) {
+      return res.status(404).json({
         success: false,
-        message: "Email already exists"
+        message: "Bill not found"
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await User.create({
+    const item = await Item.create({
+      bill_id,
       name,
-      email,
-      password: hashedPassword
+      price
     });
+
+    // GET ALL ITEMS
+    const items = await Item.findAll({
+      where: {
+        bill_id
+      }
+    });
+
+    // COMPUTE TOTAL BILL
+    const totalBill = items.reduce((sum, item) => {
+      return sum + parseFloat(item.price);
+    }, 0);
+
+    // UPDATE BILL TOTAL
+    await bill.update({
+      total_bill: totalBill
+    });
+
+    // GET PARTICIPANTS
+    const participants = await UserBill.findAll({
+      where: {
+        bill_id
+      }
+    });
+
+    // UPDATE SUBTOTALS
+    for (const participant of participants) {
+
+      const subtotal =
+        totalBill * (participant.percentage / 100);
+
+      await participant.update({
+        sub_total_bill: parseFloat(
+          subtotal.toFixed(2)
+        )
+      });
+
+    }
 
     res.status(201).json({
       success: true,
       data: {
-        id: user.id,
-        name: user.name,
-        email: user.email
+        item,
+        total_bill: totalBill
       }
     });
 
@@ -124,28 +240,101 @@ exports.update = async (req, res) => {
 
     const { id } = req.params;
 
-    const user = await User.findByPk(id);
+    const {
+      name,
+      price
+    } = req.body;
 
-    if (!user) {
+    // FIND ITEM
+    const item = await Item.findByPk(id);
+
+    if (!item) {
       return res.status(404).json({
         success: false,
-        message: "User not found"
+        message: "Item not found"
       });
     }
 
-    const {
-      name,
-      email
-    } = req.body;
+    // VERIFY ACCESS TO BILL
+    const bill = await Bill.findOne({
+      where: {
+        id: item.bill_id
+      },
 
-    await user.update({
-      name,
-      email
+      include: [
+        {
+          model: User,
+
+          where: {
+            id: req.user.id
+          },
+
+          through: {
+            attributes: []
+          },
+
+          attributes: []
+        }
+      ]
     });
+
+    if (!bill) {
+      return res.status(404).json({
+        success: false,
+        message: "Bill not found"
+      });
+    }
+
+    // UPDATE ITEM
+    await item.update({
+      name,
+      price
+    });
+
+    // GET ALL ITEMS
+    const items = await Item.findAll({
+      where: {
+        bill_id: bill.id
+      }
+    });
+
+    // COMPUTE TOTAL BILL
+    const totalBill = items.reduce((sum, item) => {
+      return sum + parseFloat(item.price);
+    }, 0);
+
+    // UPDATE BILL TOTAL
+    await bill.update({
+      total_bill: totalBill
+    });
+
+    // GET PARTICIPANTS
+    const participants = await UserBill.findAll({
+      where: {
+        bill_id: bill.id
+      }
+    });
+
+    // UPDATE SUBTOTALS
+    for (const participant of participants) {
+
+      const subtotal =
+        totalBill * (participant.percentage / 100);
+
+      await participant.update({
+        sub_total_bill: parseFloat(
+          subtotal.toFixed(2)
+        )
+      });
+
+    }
 
     res.json({
       success: true,
-      data: user
+      data: {
+        item,
+        total_bill: totalBill
+      }
     });
 
   } catch (error) {
@@ -167,20 +356,91 @@ exports.destroy = async (req, res) => {
 
     const { id } = req.params;
 
-    const user = await User.findByPk(id);
+    // FIND ITEM
+    const item = await Item.findByPk(id);
 
-    if (!user) {
+    if (!item) {
       return res.status(404).json({
         success: false,
-        message: "User not found"
+        message: "Item not found"
       });
     }
 
-    await user.destroy();
+    // VERIFY ACCESS TO BILL
+    const bill = await Bill.findOne({
+      where: {
+        id: item.bill_id
+      },
+
+      include: [
+        {
+          model: User,
+
+          where: {
+            id: req.user.id
+          },
+
+          through: {
+            attributes: []
+          },
+
+          attributes: []
+        }
+      ]
+    });
+
+    if (!bill) {
+      return res.status(404).json({
+        success: false,
+        message: "Bill not found"
+      });
+    }
+
+    // DELETE ITEM
+    await item.destroy();
+
+    // GET REMAINING ITEMS
+    const items = await Item.findAll({
+      where: {
+        bill_id: bill.id
+      }
+    });
+
+    // RECALCULATE TOTAL BILL
+    const totalBill = items.reduce((sum, item) => {
+      return sum + parseFloat(item.price);
+    }, 0);
+
+    // UPDATE BILL TOTAL
+    await bill.update({
+      total_bill: totalBill
+    });
+
+    // GET PARTICIPANTS
+    const participants = await UserBill.findAll({
+      where: {
+        bill_id: bill.id
+      }
+    });
+
+    // UPDATE SUBTOTALS
+    for (const participant of participants) {
+
+      const subtotal =
+        totalBill * (participant.percentage / 100);
+
+      await participant.update({
+        sub_total_bill: parseFloat(
+          subtotal.toFixed(2)
+        )
+      });
+
+    }
 
     res.json({
       success: true,
-      message: "User deleted"
+      message: "Item deleted",
+      total_bill: totalBill
     });
 
   } catch (error) {

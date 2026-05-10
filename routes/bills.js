@@ -9,7 +9,9 @@ const {
   show,
   store,
   update,
-  destroy
+  destroy,
+  addFriend,
+  removeFriend
 } = require("../controllers/billController");
 
 router.get("/", authMiddleware, index);
@@ -21,5 +23,9 @@ router.post("/", authMiddleware, store);
 router.put("/:id", authMiddleware, update);
 
 router.delete("/:id", authMiddleware, destroy);
+
+router.post("/:bill_id/friends", authMiddleware, addFriend);
+
+router.delete("/:bill_id/friends", authMiddleware, removeFriend);
 
 module.exports = router;
