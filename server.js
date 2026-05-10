@@ -17,11 +17,13 @@ const userRoutes = require("./routes/users");
 const authRoutes = require("./routes/auth");
 const billRoutes = require("./routes/bills");
 const itemRoutes = require("./routes/items");
+const profileRoutes = require("./routes/profile");
 
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/bills", billRoutes);
 app.use("/api/items", itemRoutes);
+app.use("/api/profile", profileRoutes);
 
 const PORT = process.env.PORT || 3000;
 
