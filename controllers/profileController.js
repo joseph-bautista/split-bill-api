@@ -37,8 +37,6 @@ exports.myProfile = async (req, res) => {
 
 };
 
-const { Friend, User } = require("../models");
-
 exports.myFriends = async (req, res) => {
 
   try {
