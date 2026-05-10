@@ -6,7 +6,7 @@ exports.index = async (req, res) => {
 
   try {
 
-    const { bill_id } = req.params;
+    const { bill_id } = req.query;
 
     // VERIFY ACCESS TO BILL
     const bill = await Bill.findOne({
@@ -67,7 +67,7 @@ exports.show = async (req, res) => {
 
   try {
 
-    const { id, bill_id } = req.params;
+    const { id, bill_id } = req.query;
 
     // VERIFY ACCESS TO BILL
     const bill = await Bill.findOne({
