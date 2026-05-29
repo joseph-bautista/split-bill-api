@@ -18,12 +18,14 @@ const authRoutes = require("./routes/auth");
 const billRoutes = require("./routes/bills");
 const itemRoutes = require("./routes/items");
 const profileRoutes = require("./routes/profile");
+const routes = require("./routes");
 
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/bills", billRoutes);
 app.use("/api/items", itemRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/", routes);
 
 const PORT = process.env.PORT || 3000;
 

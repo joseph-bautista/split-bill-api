@@ -1,0 +1,13 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: express-api
+
+    ports:
+      - "3000:3000"
+
+    env_file:
+      - .env
